@@ -1,0 +1,848 @@
+#!/usr/bin/env bash
+
+# ============================================================
+# Ubuntu Toolkit
+# Version: 0.1.0
+#
+# Main CLI / Menu
+#
+# Ubuntu 24.04 LTS
+#
+# Filosofía:
+#   - Safe by default
+#   - No ejecutar operaciones destructivas automáticamente
+#   - Delegar las tareas a scripts especializados
+#   - Mantener una interfaz centralizada
+# ============================================================
+
+set -Eeuo pipefail
+
+
+# Configuración
+
+
+SCRIPT_NAME="$(basename "$0")"
+SCRIPT_VERSION="0.1.0"
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+SYSTEM_DIR="$PROJECT_ROOT/scripts/system"
+DOCKER_DIR="$PROJECT_ROOT/scripts/docker"
+NETWORK_DIR="$PROJECT_ROOT/scripts/network"
+BACKUP_DIR="$PROJECT_ROOT/scripts/backup"
+DEVELOPMENT_DIR="$PROJECT_ROOT/scripts/development"
+GIT_DIR="$PROJECT_ROOT/scripts/git"
+UTILITIES_DIR="$PROJECT_ROOT/scripts/utilities"
+
+
+# Colores
+
+
+if [[ -t 1 ]]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    CYAN='\033[0;36m'
+    MAGENTA='\033[0;35m'
+    WHITE='\033[1;37m'
+    RESET='\033[0m'
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    CYAN=''
+    MAGENTA=''
+    WHITE=''
+    RESET=''
+fi
+
+
+# Funciones
+
+
+separator() {
+    echo
+    echo "============================================================"
+}
+
+pause() {
+    echo
+    read -rp "Presiona ENTER para continuar..."
+}
+
+info() {
+    echo -e "${CYAN}[INFO]${RESET} $*"
+}
+
+success() {
+    echo -e "${GREEN}[OK]${RESET} $*"
+}
+
+warning() {
+    echo -e "${YELLOW}[WARN]${RESET} $*"
+}
+
+error() {
+    echo -e "${RED}[ERROR]${RESET} $*" >&2
+}
+
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+
+# Ejecutar script
+
+
+run_script() {
+
+    local script="$1"
+    shift || true
+
+    if [[ ! -f "$script" ]]; then
+        error "El script no existe:"
+        error "$script"
+        pause
+        return 1
+    fi
+
+    if [[ ! -r "$script" ]]; then
+        error "El script no se puede leer:"
+        error "$script"
+        pause
+        return 1
+    fi
+
+    echo
+    info "Ejecutando:"
+    echo "$script"
+
+    echo
+
+    # Ejecutamos explícitamente con Bash.
+    # Esto evita problemas si el usuario ejecuta
+    # accidentalmente el script mediante /bin/sh.
+    bash "$script" "$@"
+
+    local exit_code=$?
+
+    echo
+
+    if [[ "$exit_code" -eq 0 ]]; then
+        success "Operación finalizada correctamente."
+    else
+        error "El script terminó con código: $exit_code"
+    fi
+
+    pause
+
+    return "$exit_code"
+}
+
+
+# Comprobar estructura
+
+
+check_project_structure() {
+
+    local missing=false
+
+    local directories=(
+        "$SYSTEM_DIR"
+        "$DOCKER_DIR"
+        "$NETWORK_DIR"
+        "$BACKUP_DIR"
+        "$DEVELOPMENT_DIR"
+        "$GIT_DIR"
+        "$UTILITIES_DIR"
+    )
+
+    for directory in "${directories[@]}"; do
+
+        if [[ ! -d "$directory" ]]; then
+            warning "Directorio no encontrado: $directory"
+            missing=true
+        fi
+
+    done
+
+    if [[ "$missing" == true ]]; then
+        warning "Algunas categorías todavía no están implementadas."
+    fi
+}
+
+
+# Banner
+
+
+show_banner() {
+
+    clear
+
+    echo
+    echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${CYAN}║${RESET}                    ${WHITE}UBUNTU TOOLKIT${RESET}                    ${CYAN}║${RESET}"
+    echo -e "${CYAN}║${RESET}                    Version $SCRIPT_VERSION                     ${CYAN}║${RESET}"
+    echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+}
+
+
+# Información rápida
+
+
+show_quick_info() {
+
+    echo -e "${BLUE}Sistema:${RESET} ${PRETTY_NAME:-Ubuntu}"
+
+    if [[ -r /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        source /etc/os-release
+
+        echo -e "${BLUE}Distribución:${RESET} ${PRETTY_NAME:-Desconocida}"
+    fi
+
+    echo -e "${BLUE}Kernel:${RESET} $(uname -r)"
+    echo -e "${BLUE}Usuario:${RESET} $(whoami)"
+    echo -e "${BLUE}Directorio:${RESET} $PROJECT_ROOT"
+
+}
+
+
+# Menú System
+
+
+system_menu() {
+
+    while true; do
+
+        show_banner
+
+        echo -e "${WHITE}SYSTEM${RESET}"
+        separator
+
+        echo
+        echo "1) Información del sistema"
+        echo "2) Comprobar almacenamiento"
+        echo "3) Mantenimiento seguro"
+        echo "0) Volver"
+
+        echo
+
+        read -rp "Selecciona una opción: " option
+
+        case "$option" in
+
+            1)
+                run_script "$SYSTEM_DIR/system-info.sh"
+                ;;
+
+            2)
+                run_script "$SYSTEM_DIR/disk-check.sh"
+                ;;
+
+            3)
+                run_maintenance
+                ;;
+
+            0)
+                return
+                ;;
+
+            *)
+                warning "Opción no válida."
+                sleep 1
+                ;;
+
+        esac
+
+    done
+}
+
+
+# Maintenance
+
+
+run_maintenance() {
+
+    local script="$SYSTEM_DIR/maintenance.sh"
+
+    if [[ ! -f "$script" ]]; then
+        error "No se encontró maintenance.sh."
+        pause
+        return
+    fi
+
+    echo
+    warning "MANTENIMIENTO DEL SISTEMA"
+    echo
+    echo "Este módulo puede modificar el sistema."
+    echo
+    echo "Incluye:"
+    echo
+    echo "  - Limpieza segura de APT"
+    echo "  - Actualización opcional"
+    echo "  - Verificación DPKG"
+    echo "  - Ajustes opcionales de memoria"
+    echo "  - Configuración de TRIM"
+    echo "  - Limpieza de temporales"
+    echo
+    echo "No incluye:"
+    echo
+    echo "  - apt autoremove"
+    echo "  - eliminación de Docker"
+    echo "  - eliminación de perfiles"
+    echo "  - modificación de /etc/fstab"
+    echo
+    echo "Se recomienda ejecutar primero:"
+    echo
+    echo "  maintenance.sh --dry-run"
+    echo
+
+    if ! confirm_action "¿Continuar con mantenimiento?"; then
+        info "Operación cancelada."
+        pause
+        return
+    fi
+
+    echo
+
+    if [[ "$EUID" -ne 0 ]]; then
+
+        info "El mantenimiento requiere privilegios administrativos."
+
+        echo
+
+        sudo bash "$script"
+
+    else
+
+        bash "$script"
+
+    fi
+
+    local exit_code=$?
+
+    echo
+
+    if [[ "$exit_code" -eq 0 ]]; then
+        success "Mantenimiento finalizado."
+    else
+        error "Mantenimiento terminó con código: $exit_code"
+    fi
+
+    pause
+}
+
+
+# Confirmación
+
+
+confirm_action() {
+
+    local prompt="$1"
+    local answer
+
+    read -rp "$prompt [y/N]: " answer
+
+    [[ "$answer" =~ ^[Yy]$ ]]
+
+}
+
+
+# Menú Docker
+
+
+docker_menu() {
+
+    while true; do
+
+        show_banner
+
+        echo -e "${WHITE}DOCKER${RESET}"
+        separator
+
+        echo
+        echo "1) Información de Docker"
+        echo "2) Limpieza de Docker"
+        echo "0) Volver"
+
+        echo
+
+        read -rp "Selecciona una opción: " option
+
+        case "$option" in
+
+            1)
+                run_optional_script \
+                    "$DOCKER_DIR/info.sh" \
+                    "docker/info.sh"
+                ;;
+
+            2)
+                run_optional_script \
+                    "$DOCKER_DIR/cleanup.sh" \
+                    "docker/cleanup.sh"
+                ;;
+
+            0)
+                return
+                ;;
+
+            *)
+                warning "Opción no válida."
+                sleep 1
+                ;;
+
+        esac
+
+    done
+}
+
+
+# Menú Network
+
+
+network_menu() {
+
+    while true; do
+
+        show_banner
+
+        echo -e "${WHITE}NETWORK${RESET}"
+        separator
+
+        echo
+        echo "1) Diagnóstico de red"
+        echo "0) Volver"
+
+        echo
+
+        read -rp "Selecciona una opción: " option
+
+        case "$option" in
+
+            1)
+                run_optional_script \
+                    "$NETWORK_DIR/network-check.sh" \
+                    "network/network-check.sh"
+                ;;
+
+            0)
+                return
+                ;;
+
+            *)
+                warning "Opción no válida."
+                sleep 1
+                ;;
+
+        esac
+
+    done
+}
+
+
+# Menú Backup
+
+
+backup_menu() {
+
+    while true; do
+
+        show_banner
+
+        echo -e "${WHITE}BACKUP${RESET}"
+        separator
+
+        echo
+        echo "1) Backup de configuraciones"
+        echo "0) Volver"
+
+        echo
+
+        read -rp "Selecciona una opción: " option
+
+        case "$option" in
+
+            1)
+                run_optional_script \
+                    "$BACKUP_DIR/backup-config.sh" \
+                    "backup/backup-config.sh"
+                ;;
+
+            0)
+                return
+                ;;
+
+            *)
+                warning "Opción no válida."
+                sleep 1
+                ;;
+
+        esac
+
+    done
+}
+
+
+# Menú Development
+
+
+development_menu() {
+
+    while true; do
+
+        show_banner
+
+        echo -e "${WHITE}DEVELOPMENT${RESET}"
+        separator
+
+        echo
+        echo "1) Preparar entorno de desarrollo"
+        echo "2) Crear proyecto"
+        echo "0) Volver"
+
+        echo
+
+        read -rp "Selecciona una opción: " option
+
+        case "$option" in
+
+            1)
+                run_optional_script \
+                    "$DEVELOPMENT_DIR/dev-setup.sh" \
+                    "development/dev-setup.sh"
+                ;;
+
+            2)
+                run_optional_script \
+                    "$DEVELOPMENT_DIR/new-project.sh" \
+                    "development/new-project.sh"
+                ;;
+
+            0)
+                return
+                ;;
+
+            *)
+                warning "Opción no válida."
+                sleep 1
+                ;;
+
+        esac
+
+    done
+}
+
+
+# Menú Git
+
+
+git_menu() {
+
+    while true; do
+
+        show_banner
+
+        echo -e "${WHITE}GIT${RESET}"
+        separator
+
+        echo
+        echo "1) Git workflow"
+        echo "0) Volver"
+
+        echo
+
+        read -rp "Selecciona una opción: " option
+
+        case "$option" in
+
+            1)
+                run_optional_script \
+                    "$GIT_DIR/git-workflow.sh" \
+                    "git/git-workflow.sh"
+                ;;
+
+            0)
+                return
+                ;;
+
+            *)
+                warning "Opción no válida."
+                sleep 1
+                ;;
+
+        esac
+
+    done
+}
+
+
+# Menú Utilities
+
+
+utilities_menu() {
+
+    while true; do
+
+        show_banner
+
+        echo -e "${WHITE}UTILITIES${RESET}"
+        separator
+
+        echo
+        echo "1) TXT → Markdown"
+        echo "2) Limpiar Downloads"
+        echo "0) Volver"
+
+        echo
+
+        read -rp "Selecciona una opción: " option
+
+        case "$option" in
+
+            1)
+                run_optional_script \
+                    "$UTILITIES_DIR/txt2md.sh" \
+                    "utilities/txt2md.sh"
+                ;;
+
+            2)
+                run_optional_script \
+                    "$UTILITIES_DIR/downloads-cleanup.sh" \
+                    "utilities/downloads-cleanup.sh"
+                ;;
+
+            0)
+                return
+                ;;
+
+            *)
+                warning "Opción no válida."
+                sleep 1
+                ;;
+
+        esac
+
+    done
+}
+
+
+# Scripts opcionales
+
+
+run_optional_script() {
+
+    local script="$1"
+    local relative_path="$2"
+
+    if [[ ! -f "$script" ]]; then
+
+        echo
+        warning "Esta función todavía no está implementada."
+
+        echo
+        echo "Script esperado:"
+        echo "$relative_path"
+
+        echo
+        echo "Puedes añadirlo posteriormente al proyecto."
+
+        pause
+        return
+
+    fi
+
+    run_script "$script"
+
+}
+
+
+# Menú principal
+
+
+main_menu() {
+
+    while true; do
+
+        show_banner
+
+        show_quick_info
+
+        separator
+
+        echo
+        echo "1) System"
+        echo "2) Docker"
+        echo "3) Network"
+        echo "4) Backup"
+        echo "5) Development"
+        echo "6) Git"
+        echo "7) Utilities"
+        echo "0) Salir"
+
+        echo
+
+        read -rp "Selecciona una opción: " option
+
+        case "$option" in
+
+            1)
+                system_menu
+                ;;
+
+            2)
+                docker_menu
+                ;;
+
+            3)
+                network_menu
+                ;;
+
+            4)
+                backup_menu
+                ;;
+
+            5)
+                development_menu
+                ;;
+
+            6)
+                git_menu
+                ;;
+
+            7)
+                utilities_menu
+                ;;
+
+            0)
+                clear
+                echo
+                echo "Ubuntu Toolkit finalizado."
+                echo
+                exit 0
+                ;;
+
+            *)
+                warning "Opción no válida."
+                sleep 1
+                ;;
+
+        esac
+
+    done
+}
+
+
+# CLI directo
+
+
+run_direct_command() {
+
+    local command="$1"
+    shift || true
+
+    case "$command" in
+
+        system-info)
+            run_script "$SYSTEM_DIR/system-info.sh" "$@"
+            ;;
+
+        disk-check)
+            run_script "$SYSTEM_DIR/disk-check.sh" "$@"
+            ;;
+
+        maintenance)
+
+            if [[ "$EUID" -ne 0 ]]; then
+                sudo bash "$SYSTEM_DIR/maintenance.sh" "$@"
+            else
+                bash "$SYSTEM_DIR/maintenance.sh" "$@"
+            fi
+
+            ;;
+
+        docker-cleanup)
+            run_optional_script \
+                "$DOCKER_DIR/cleanup.sh" \
+                "docker/cleanup.sh"
+            ;;
+
+        network-check)
+            run_optional_script \
+                "$NETWORK_DIR/network-check.sh" \
+                "network/network-check.sh"
+            ;;
+
+        --version|-v)
+
+            echo "Ubuntu Toolkit $SCRIPT_VERSION"
+            ;;
+
+        --help|-h)
+
+            cat <<EOF
+
+Ubuntu Toolkit $SCRIPT_VERSION
+
+Uso:
+
+    ./ubuntu-toolkit
+    ./ubuntu-toolkit system-info
+    ./ubuntu-toolkit disk-check
+    ./ubuntu-toolkit maintenance
+    ./ubuntu-toolkit maintenance --dry-run
+    ./ubuntu-toolkit --version
+    ./ubuntu-toolkit --help
+
+Comandos:
+
+    system-info       Información del sistema
+    disk-check        Diagnóstico de almacenamiento
+    maintenance       Mantenimiento seguro
+    docker-cleanup    Limpieza de Docker
+    network-check     Diagnóstico de red
+
+Sin argumentos:
+
+    Abre el menú interactivo.
+
+EOF
+            ;;
+
+        *)
+
+            error "Comando desconocido: $command"
+
+            echo
+            echo "Ejecuta:"
+            echo
+            echo "    ./ubuntu-toolkit --help"
+
+            return 1
+            ;;
+
+    esac
+}
+
+
+# Main
+
+
+check_project_structure
+
+if [[ $# -gt 0 ]]; then
+
+    run_direct_command "$@"
+
+else
+
+    main_menu
+
+fi
+
