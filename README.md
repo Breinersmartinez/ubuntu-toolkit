@@ -21,6 +21,7 @@ El proyecto está diseñado bajo una filosofía de **Safe by Default**: los scri
 * Conversión de TXT a Markdown
 * Diagnóstico de almacenamiento
 * Preparación de entornos de desarrollo
+* Instalación e integración de OpenCode (agente de IA para desarrollo)
 * Gestión de paquetes
 * Herramientas de diagnóstico
 
@@ -99,6 +100,7 @@ ubuntu-toolkit/
 │   │   └── backup-config.sh
 │   │
 │   ├── development/
+│   │   ├── install-opencode.sh
 │   │   ├── new-project.sh
 │   │   └── dev-setup.sh
 │   │
@@ -454,6 +456,58 @@ mi-angular-app/
 
 ---
 
+## OpenCode
+
+OpenCode es un agente de IA interactivo para terminal enfocado en desarrollo de software y asistencia técnica.
+
+### Ubicación del script
+
+```text
+scripts/development/install-opencode.sh
+```
+
+### Características del instalador
+
+* Compatible con **Ubuntu 24.04 LTS**.
+* Instalación a nivel de usuario en `~/.local/bin` (no requiere `sudo` para instalar el binario).
+* Preserva configuraciones y no almacena credenciales ni API keys.
+* Safe by default: no inicia automáticamente la herramienta tras la instalación.
+
+### Cómo instalarlo desde Ubuntu Toolkit
+
+Desde el menú interactivo:
+
+```bash
+./bin/ubuntu-toolkit
+```
+
+1. Seleccionar la opción **8) OpenCode**.
+2. Elegir **1) Instalar OpenCode**.
+
+O mediante comando directo:
+
+```bash
+./bin/ubuntu-toolkit opencode-install
+```
+
+### Cómo verificar la instalación
+
+Desde el submenú de OpenCode:
+
+1. Seleccionar **2) Verificar instalación** para comprobar existencia, versión, ubicación y estado en PATH.
+2. Seleccionar **3) Mostrar versión** para ejecutar `opencode --version`.
+3. Seleccionar **4) Ver ubicación** para ejecutar `command -v opencode`.
+
+O directamente desde la CLI:
+
+```bash
+./bin/ubuntu-toolkit opencode-check
+./bin/ubuntu-toolkit opencode-version
+./bin/ubuntu-toolkit opencode-location
+```
+
+---
+
 ## Docker
 
 Las herramientas Docker están orientadas a ayudar a controlar el almacenamiento y los recursos utilizados por Docker.
@@ -592,6 +646,7 @@ find scripts -type f -name "*.sh" -print0 | xargs -0 -n1 shellcheck
 | Git Workflow        | En desarrollo |
 | SSH Key Generator   | En desarrollo |
 | New Project         | En desarrollo |
+| OpenCode Installer  | Disponible    |
 | Docker Cleanup      | Planeado      |
 | Docker Info         | Planeado      |
 | System Info         | Planeado      |
@@ -601,7 +656,7 @@ find scripts -type f -name "*.sh" -print0 | xargs -0 -n1 shellcheck
 | Dev Setup           | Planeado      |
 | TXT → Markdown      | Planeado      |
 | Downloads Cleanup   | Planeado      |
-| CLI principal       | Planeado      |
+| CLI principal       | En desarrollo |
 | Tests automatizados | Planeado      |
 
 ---
@@ -666,6 +721,7 @@ Con un menú centralizado:
 | 5. Development                       |
 | 6. Git                               |
 | 7. Utilities                         |
+| 8. OpenCode                          |
 | 0. Exit                              |
 +--------------------------------------+
 ```

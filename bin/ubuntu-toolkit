@@ -633,6 +633,131 @@ utilities_menu() {
 }
 
 
+# Menú OpenCode
+
+
+ensure_opencode_in_path() {
+    if [[ -d "$HOME/.local/bin" ]] && [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+}
+
+verify_opencode_installation() {
+
+    ensure_opencode_in_path
+
+    separator
+    info "Verificando instalación de OpenCode..."
+    echo
+
+    if command_exists opencode; then
+        success "Existe opencode: Sí"
+        local version
+        version="$(opencode --version 2>/dev/null || true)"
+        info "Versión: ${version:-Desconocida}"
+        info "Ubicación: $(command -v opencode)"
+    else
+        error "Existe opencode: No"
+        warning "Versión: No disponible"
+        warning "Ubicación: No disponible"
+    fi
+
+    if [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
+        success "PATH: ~/.local/bin está en el PATH."
+    else
+        warning "PATH: ~/.local/bin NO está en el PATH actual."
+    fi
+
+    pause
+}
+
+show_opencode_version() {
+
+    ensure_opencode_in_path
+
+    echo
+    if command_exists opencode; then
+        info "Ejecutando: opencode --version"
+        echo
+        opencode --version
+    else
+        error "opencode no está disponible en PATH."
+        warning "Instala OpenCode o asegúrate de que ~/.local/bin esté en tu PATH."
+    fi
+
+    pause
+}
+
+show_opencode_location() {
+
+    ensure_opencode_in_path
+
+    echo
+    if command_exists opencode; then
+        info "Ejecutando: command -v opencode"
+        echo
+        command -v opencode
+    else
+        error "opencode no está disponible en PATH."
+        warning "Instala OpenCode o asegúrate de que ~/.local/bin esté en tu PATH."
+    fi
+
+    pause
+}
+
+opencode_menu() {
+
+    while true; do
+
+show_banner
+
+        echo -e "${WHITE}OPENCODE${RESET}"
+        separator
+
+        echo
+        echo "1) Instalar OpenCode"
+        echo "2) Verificar instalación"
+        echo "3) Mostrar versión"
+        echo "4) Ver ubicación"
+        echo "0) Volver"
+
+        echo
+
+        read -rp "Selecciona una opción: " option
+
+        case "$option" in
+
+            1)
+                run_script "$DEVELOPMENT_DIR/install-opencode.sh"
+                ;;
+
+            2)
+                verify_opencode_installation
+                ;;
+
+            3)
+                show_opencode_version
+                ;;
+
+            4)
+                show_opencode_location
+                ;;
+
+            0)
+                return
+                ;;
+
+            *)
+                warning "Opción no válida."
+                sleep 1
+                ;;
+
+        esac
+
+    done
+}
+
+
 # Scripts opcionales
 
 
@@ -684,6 +809,7 @@ main_menu() {
         echo "5) Development"
         echo "6) Git"
         echo "7) Utilities"
+        echo "8) OpenCode"
         echo "0) Salir"
 
         echo
@@ -718,6 +844,10 @@ main_menu() {
 
             7)
                 utilities_menu
+                ;;
+
+            8)
+                opencode_menu
                 ;;
 
             0)
@@ -779,6 +909,26 @@ run_direct_command() {
                 "network/network-check.sh"
             ;;
 
+        opencode)
+            opencode_menu
+            ;;
+
+        opencode-install)
+            run_script "$DEVELOPMENT_DIR/install-opencode.sh" "$@"
+            ;;
+
+        opencode-check)
+            verify_opencode_installation
+            ;;
+
+        opencode-version)
+            show_opencode_version
+            ;;
+
+        opencode-location)
+            show_opencode_location
+            ;;
+
         --version|-v)
 
             echo "Ubuntu Toolkit $SCRIPT_VERSION"
@@ -797,6 +947,11 @@ Uso:
     ./ubuntu-toolkit disk-check
     ./ubuntu-toolkit maintenance
     ./ubuntu-toolkit maintenance --dry-run
+    ./ubuntu-toolkit opencode
+    ./ubuntu-toolkit opencode-install
+    ./ubuntu-toolkit opencode-check
+    ./ubuntu-toolkit opencode-version
+    ./ubuntu-toolkit opencode-location
     ./ubuntu-toolkit --version
     ./ubuntu-toolkit --help
 
@@ -807,6 +962,11 @@ Comandos:
     maintenance       Mantenimiento seguro
     docker-cleanup    Limpieza de Docker
     network-check     Diagnóstico de red
+    opencode          Menú interactivo de OpenCode
+    opencode-install  Instalar OpenCode
+    opencode-check    Verificar instalación de OpenCode
+    opencode-version  Mostrar versión de OpenCode
+    opencode-location Ver ubicación de OpenCode
 
 Sin argumentos:
 
